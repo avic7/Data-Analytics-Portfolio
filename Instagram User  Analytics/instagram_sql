@@ -1,0 +1,96 @@
+-- Instagram User Analytics
+
+
+-- A) Marketing Insights
+-- 1) Reward Most Loyal Users (top likers)
+SELECT
+  u.id,
+  u.username,
+  COUNT(*) AS likes_given
+FROM users AS u
+JOIN likes AS l
+  ON l.user_id = u.id
+GROUP BY u.id, u.username
+ORDER BY likes_given DESC
+LIMIT 50;
+
+
+-- 2) Remind Inactive Users to Start Posting (users with zero photos)
+SELECT
+  u.id,
+  u.username
+FROM users AS u
+LEFT JOIN photos AS p
+  ON p.user_id = u.id
+WHERE p.id IS NULL
+ORDER BY u.id;
+
+-- 3) Contest Winner Photo(s) with the highest likes on a single photo
+-- Option A: Simple Top-1 list (remove LIMIT to see all)
+SELECT
+  p.id       AS photo_id,
+  u.id       AS user_id,
+  u.username AS owner_username,
+  COUNT(*)   AS likes_count
+FROM photos AS p
+JOIN likes  AS l ON l.photo_id = p.id
+JOIN users  AS u ON u.id = p.user_id
+GROUP BY p.id, u.id, u.username
+ORDER BY likes_count DESC
+LIMIT 1;
+
+-- Option B: Include ties at the maximum like count
+WITH photo_like_counts AS (
+  SELECT p.id AS photo_id, COUNT(*) AS likes_count
+  FROM photos p
+  JOIN likes  l ON l.photo_id = p.id
+  GROUP BY p.id
+),
+max_likes AS (
+  SELECT MAX(likes_count) AS mx FROM photo_like_counts
+)
+SELECT plc.photo_id, u.id AS user_id, u.username AS owner_username, plc.likes_count
+FROM photo_like_counts plc
+JOIN photos p ON p.id = plc.photo_id
+JOIN users  u ON u.id = p.user_id
+JOIN max_likes m ON plc.likes_count = m.mx
+ORDER BY plc.photo_id;
+
+-- 4) Hashtag Research — Most Used Hashtags 
+SELECT
+  t.tag_name,
+  COUNT(*) AS tag_count
+FROM tags AS t
+JOIN photo_tags AS pt
+  ON pt.tag_id = t.id
+GROUP BY t.tag_name
+ORDER BY tag_count DESC
+LIMIT 50;
+
+-- 5) Best Day to Launch Ad Campaign (weekday with most user events — based on users.created_at as shown in the screenshots)
+SELECT
+  CASE WEEKDAY(u.created_at)
+    WHEN 0 THEN 'Monday'
+    WHEN 1 THEN 'Tuesday'
+    WHEN 2 THEN 'Wednesday'
+    WHEN 3 THEN 'Thursday'
+    WHEN 4 THEN 'Friday'
+    WHEN 5 THEN 'Saturday'
+    WHEN 6 THEN 'Sunday'
+  END AS day_name,
+  COUNT(*) AS user_events
+FROM users AS u
+GROUP BY day_name
+ORDER BY user_events DESC;
+
+-- /B) Investor Metrics :Bots / Fake Accounts (heavy likers threshold)
+SELECT
+  u.id,
+  u.username,
+  COUNT(*) AS likes_given
+FROM users AS u
+JOIN likes AS l
+  ON l.user_id = u.id
+GROUP BY u.id, u.username
+HAVING COUNT(*) >= 200  
+ORDER BY likes_given DESC;
