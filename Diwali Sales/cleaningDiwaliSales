@@ -1,0 +1,182 @@
+/*
+The following SQL script is designed to clean and prepare raw Diwali Sales data for analysis. It includes steps for data normalization, type conversion, missing value imputation, duplicate removal, and indexing for performance optimization.
+Author: Atharva Vichare
+Let me know how i can improve it!
+*/
+
+
+-- 0) Create staging table
+DROP TABLE IF EXISTS diwali_staging;
+CREATE TABLE diwali_staging (
+  user_id        text,
+  cust_name      text,
+  product_id     text,
+  gender         text,
+  age_group      text,
+  age            text,
+  marital_status text,
+  state          text,
+  zone           text,
+  occupation     text,
+  product_category text,
+  orders         text,
+  amount         text,
+  status         text,
+  unnamed1       text
+);
+
+
+-- 1) Normalize raw text fields
+UPDATE diwali_staging
+SET
+  cust_name = NULLIF(regexp_replace(trim(cust_name), '\s+', ' ', 'g'), ''),
+  product_id = NULLIF(trim(product_id), ''),
+  gender = NULLIF(trim(gender), ''),
+  age_group = NULLIF(trim(age_group), ''),
+  age = NULLIF(trim(age), ''),
+  marital_status = NULLIF(trim(marital_status), ''),
+  state = NULLIF(regexp_replace(trim(state), '\s+', ' ', 'g'), ''),
+  zone = NULLIF(trim(zone), ''),
+  occupation = NULLIF(regexp_replace(trim(occupation), '\s+', ' ', 'g'), ''),
+  product_category = NULLIF(regexp_replace(trim(product_category), '\s+', ' ', 'g'), ''),
+  orders = NULLIF(trim(orders), ''),
+  amount = NULLIF(regexp_replace(trim(amount), E'\\r|\\n', '', 'g'), ''),
+  status = NULLIF(trim(status), ''),
+  unnamed1 = NULLIF(trim(unnamed1), '');
+
+
+-- 2) Parse into typed cleaned table
+DROP TABLE IF EXISTS diwali_clean;
+CREATE TABLE diwali_clean AS
+SELECT
+  -- user_id
+  NULLIF(regexp_replace(user_id, '[^0-9\-]', '', 'g'), '')::bigint AS user_id,
+
+  -- names & ids
+  initcap(lower(regexp_replace(coalesce(cust_name,''), '\s+', ' ', 'g'))) AS cust_name,
+  trim(product_id) AS product_id,
+
+  -- gender standardization
+  CASE
+    WHEN lower(gender) IN ('m','male') THEN 'M'
+    WHEN lower(gender) IN ('f','female') THEN 'F'
+    ELSE 'Unknown'
+  END AS gender,
+
+  -- age group and numeric age
+  initcap(lower(age_group)) AS age_group,
+  NULLIF(regexp_replace(age, '[^0-9\-]', '', 'g'), '')::int AS age,
+
+  -- marital_status (0/1 expected)
+  NULLIF(regexp_replace(marital_status, '[^0-9]', '', 'g'), '')::int AS marital_status,
+
+  -- categorical data 
+  initcap(lower(state)) AS state,
+  initcap(lower(zone)) AS zone,
+  initcap(lower(occupation)) AS occupation,
+  initcap(lower(product_category)) AS product_category,
+
+  -- orders 
+  NULLIF(regexp_replace(orders, '[^0-9\-]', '', 'g'), '')::int AS orders,
+
+  -- amount
+  NULLIF(regexp_replace(amount, '[^0-9.\-]', '', 'g'), '')::numeric(14,2) AS amount
+FROM diwali_staging;
+
+
+-- 3) Impute NULLs in numeric columns using group medians
+-- 3a. Amount imputation: by product_id, then fallback to overall median
+WITH prod_amount_med AS (
+  SELECT product_id,
+         percentile_cont(0.5) WITHIN GROUP (ORDER BY amount) AS median_amount
+  FROM diwali_clean
+  WHERE amount IS NOT NULL
+  GROUP BY product_id
+),
+overall_amount_med AS (
+  SELECT percentile_cont(0.5) WITHIN GROUP (ORDER BY amount) AS overall_med
+  FROM diwali_clean
+  WHERE amount IS NOT NULL
+)
+UPDATE diwali_clean c
+SET amount = COALESCE(c.amount, pam.median_amount, (SELECT overall_med FROM overall_amount_med))
+FROM prod_amount_med pam
+WHERE c.product_id = pam.product_id
+  AND c.amount IS NULL;
+
+
+-- 3b. Age imputation: by age_group, then fallback to overall median
+WITH group_age_med AS (
+  SELECT age_group,
+         percentile_cont(0.5) WITHIN GROUP (ORDER BY age) AS median_age
+  FROM diwali_clean
+  WHERE age IS NOT NULL
+  GROUP BY age_group
+),
+overall_age_med AS (
+  SELECT percentile_cont(0.5) WITHIN GROUP (ORDER BY age) AS overall_med_age
+  FROM diwali_clean
+  WHERE age IS NOT NULL
+)
+UPDATE diwali_clean c
+SET age = COALESCE(c.age, gam.median_age, (SELECT overall_med_age FROM overall_age_med))
+FROM group_age_med gam
+WHERE c.age_group = gam.age_group
+  AND c.age IS NULL;
+
+
+-- 4) Replace NULLs in categorical data with 'Unknown'
+UPDATE diwali_clean
+SET
+  cust_name = COALESCE(NULLIF(cust_name,''), 'Unknown'),
+  product_id = COALESCE(NULLIF(product_id,''), 'Unknown'),
+  gender = COALESCE(NULLIF(gender,''), 'Unknown'),
+  age_group = COALESCE(NULLIF(age_group,''), 'Unknown'),
+  state = COALESCE(NULLIF(state,''), 'Unknown'),
+  zone = COALESCE(NULLIF(zone,''), 'Unknown'),
+  occupation = COALESCE(NULLIF(occupation,''), 'Unknown'),
+  product_category = COALESCE(NULLIF(product_category,''), 'Unknown');
+
+-- 5) Remove duplicate rows
+DELETE FROM diwali_clean a
+USING diwali_clean b
+WHERE a.ctid < b.ctid
+  AND a.user_id = b.user_id
+  AND a.cust_name = b.cust_name
+  AND a.product_id = b.product_id
+  AND a.gender = b.gender
+  AND a.age_group = b.age_group
+  AND a.age = b.age
+  AND a.marital_status = b.marital_status
+  AND a.state = b.state
+  AND a.zone = b.zone
+  AND a.occupation = b.occupation
+  AND a.product_category = b.product_category
+  AND a.orders = b.orders
+  AND a.amount = b.amount;
+
+-- ===============================================================
+-- 6) Indexes for analysis speed
+-- ===============================================================
+CREATE INDEX IF NOT EXISTS idx_diwali_user ON diwali_clean(user_id);
+CREATE INDEX IF NOT EXISTS idx_diwali_product ON diwali_clean(product_id);
+CREATE INDEX IF NOT EXISTS idx_diwali_category ON diwali_clean(product_category);
+
+
+-- 7) quick checks for seeing if the data is clean and ready for analysis
+-- Missingness
+SELECT
+  SUM(CASE WHEN amount IS NULL THEN 1 ELSE 0 END) AS amount_nulls,
+  SUM(CASE WHEN age IS NULL THEN 1 ELSE 0 END) AS age_nulls,
+  COUNT(*) AS total_rows
+FROM diwali_clean;
+
+-- Category counts
+SELECT gender, COUNT(*) FROM diwali_clean GROUP BY gender;
+SELECT product_category, COUNT(*) FROM diwali_clean GROUP BY product_category ORDER BY COUNT(*) DESC;
+
+-- Revenue by category
+SELECT product_category, SUM(amount) AS total_revenue
+FROM diwali_clean
+GROUP BY product_category
+ORDER BY total_revenue DESC;
