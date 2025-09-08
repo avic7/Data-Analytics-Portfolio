@@ -50,7 +50,7 @@ The final cleaned dataset has:
 - Handling Missing Values (`COALESCE`, `NULLIF`)  
 - Normalization (e.g., standardizing category text)  
 
-👉 **[View SQL Script]([./diwali_sales_cleaning.sql](https://github.com/avic7/Data-Analytics-Portfolio/blob/main/Diwali%20Sales/cleaningDiwaliSales.sql))**  
+👉 **[View SQL Script](https://github.com/avic7/Data-Analytics-Portfolio/blob/main/Diwali%20Sales/cleaningDiwaliSales.sql)**  
 
 ---
 
