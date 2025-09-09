@@ -23,12 +23,23 @@ The project workflow included:
 
 ## Key Insights
 1. **Market Popularity:** Market categories like *Hatchback Flex Fuel* and *Crossover Diesel* emerged as the most popular.
-2. **Engine Power & Price:** Positive correlation – higher horsepower leads to higher MSRP.
-3. **Feature Importance:** Regression analysis showed **engine cylinders** had the strongest impact on car pricing, while **number of doors** had the least.
-4. **Brand Pricing:** *Bugatti* had the highest average MSRP, while *Plymouth* had the lowest.
-5. **Fuel Efficiency:** Negative correlation between number of cylinders and highway MPG. More cylinders = lower fuel efficiency.
-6. **Trends Over Time:** Highway MPG improved consistently after 2007 across body styles.
-7. **Dashboard Insights:** Interactive dashboard showed brand-wise distribution of prices, effect of transmission & style on pricing, and tradeoffs between horsepower, MPG, and price.
+  <img width="1319" height="843" alt="image" src="https://github.com/user-attachments/assets/00460dae-e4c0-4539-a430-dcf452a3cc63" />
+
+3. **Engine Power & Price:** Positive correlation – higher horsepower leads to higher MSRP.
+   <img width="1253" height="700" alt="image" src="https://github.com/user-attachments/assets/faa42c89-614e-48f2-938f-a8a5cbb3b1a7" />
+
+5. **Feature Importance:** Regression analysis showed **engine cylinders** had the strongest impact on car pricing, while **number of doors** had the least.
+   <img width="1547" height="676" alt="image" src="https://github.com/user-attachments/assets/7076af83-e602-4cb1-bfc1-f20ae3c16432" />
+
+7. **Brand Pricing:** *Bugatti* had the highest average MSRP, while *Plymouth* had the lowest.
+   <img width="1330" height="628" alt="image" src="https://github.com/user-attachments/assets/bc19b099-cafc-4e32-8ee5-2cef35232864" />
+
+9. **Fuel Efficiency:** Negative correlation between number of cylinders and highway MPG. More cylinders = lower fuel efficiency.
+    <img width="1239" height="594" alt="image" src="https://github.com/user-attachments/assets/26e6df16-9f9a-4cd1-ad3c-5c01a7e3ce9a" />
+
+11. **Trends Over Time:** Highway MPG improved consistently after 2007 across body styles.
+12. **Dashboard Insights:** Interactive dashboard showed brand-wise distribution of prices, effect of transmission & style on pricing, and tradeoffs between horsepower, MPG, and price.
+    <img width="1117" height="703" alt="image" src="https://github.com/user-attachments/assets/0b5748e1-892c-4752-af6f-fbefc54e1794" />
 
 ---
 
